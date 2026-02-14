@@ -5,41 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { use, useState, useEffect } from 'react';
 
-interface Documento {
-  especie: string;
-  id: number;
-  nome: string;
-  producaoAno: string;
-  url: string;
-  validadeLicenca: string;
-}
-
-interface Pessoa {
-  cnpj: string;
-  id: number;
-  nome: string;
-  porcentagem: string;
-  status: 'OK' | 'ATENCAO' | 'INVALIDO';
-  tipoPessoa: string;
-  tipoProcesso: string;
-}
-
-interface DadosLicenca {
-  descricao: string;
-  documentos: Documento[];
-  fase: string | null;
-  id: number;
-  nomeArquivo: string | null;
-  pessoa: Pessoa;
-  status: 'OK' | 'ATENCAO' | 'INVALIDO';
-}
-
-const API_BASE_URL = 'https://inspective-tamica-fatuously.ngrok-free.dev';
-
-interface Toast {
-  message: string;
-  type: 'success' | 'error';
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function LicenseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
