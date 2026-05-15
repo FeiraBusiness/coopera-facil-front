@@ -1,11 +1,14 @@
 'use client';
 
-import { AlertTriangle, ArrowRight, CheckCircle, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import Spinner from '@/app/admin/components/Spinner';
+import Pagination from '@/app/admin/components/Pagination';
+import { mockFetchLicenses, mockFetchStats } from '@/app/utils/mock-legacy-data';
+import { AlertTriangle, ArrowRight, CheckCircle, Clock } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function Licenciamento() {
     const [activeTab, setActiveTab] = useState<TabType>('cooperados');
@@ -47,21 +50,20 @@ export default function Licenciamento() {
         setIsLoadingLicenses(true);
         try {
             const tipoProcesso = activeTab === 'cooperados' ? 'COOPERADO' : 'EM_PROCESSO';
-            const statusParam = status === 'TUDO' ? '' : `&status=${status}`;
-            const response = await fetch(
-                `${API_BASE_URL}/licenca?tipoProcesso=${tipoProcesso}${statusParam}&pageNumber=${page}&size=${pageSize}`,
-                {
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true',
-                    },
-                }
-            );
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch licenses');
-            }
+            // Integração real com o back-end (GET /api/v1/license?producerId=&status=),
+            // desativada enquanto o front usa dados mocados:
+            //
+            // const statusParam = status === 'TUDO' ? '' : `&status=${status}`;
+            // const response = await fetch(
+            //     `${API_BASE_URL}/licenca?tipoProcesso=${tipoProcesso}${statusParam}&pageNumber=${page}&size=${pageSize}`,
+            //     { headers: { 'ngrok-skip-browser-warning': 'true' } }
+            // );
+            // if (!response.ok) throw new Error('Failed to fetch licenses');
+            // const data: PaginatedLicenseResponse = await response.json();
 
-            const data: PaginatedLicenseResponse = await response.json();
+            await new Promise((resolve) => setTimeout(resolve, 450));
+            const data: PaginatedLicenseResponse = mockFetchLicenses(tipoProcesso, status, page, pageSize);
 
             // Update pagination state from API response
             setCurrentPage(data.number);
@@ -105,45 +107,25 @@ export default function Licenciamento() {
         fetchLicenses(selectedStatus, 0);
     }, [selectedStatus, activeTab]);
 
-    // Pagination handlers
-    const goToPreviousPage = () => {
-        if (currentPage > 0 && !isLoadingLicenses) {
-            fetchLicenses(selectedStatus, currentPage - 1);
-        }
-    };
-
-    const goToNextPage = () => {
-        if (currentPage < totalPages - 1 && !isLoadingLicenses) {
-            fetchLicenses(selectedStatus, currentPage + 1);
-        }
-    };
-
-    const goToPage = (pageNumber: number) => {
-        if (pageNumber >= 0 && pageNumber < totalPages && !isLoadingLicenses) {
-            fetchLicenses(selectedStatus, pageNumber);
-        }
-    };
-
     // Fetch data from API
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
                 const tipoProcesso = activeTab === 'cooperados' ? 'COOPERADO' : 'EM_PROCESSO';
-                const response = await fetch(
-                    `${API_BASE_URL}/pessoa/total?tipoProcesso=${tipoProcesso}`,
-                    {
-                        headers: {
-                            'ngrok-skip-browser-warning': 'true',
-                        },
-                    }
-                );
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch data');
-                }
+                // Integração real com o back-end (GET /api/v1/dashboard/summary),
+                // desativada enquanto o front usa dados mocados:
+                //
+                // const response = await fetch(
+                //     `${API_BASE_URL}/pessoa/total?tipoProcesso=${tipoProcesso}`,
+                //     { headers: { 'ngrok-skip-browser-warning': 'true' } }
+                // );
+                // if (!response.ok) throw new Error('Failed to fetch data');
+                // const data: ApiResponse = await response.json();
 
-                const data: ApiResponse = await response.json();
+                await new Promise((resolve) => setTimeout(resolve, 450));
+                const data: ApiResponse = mockFetchStats(tipoProcesso);
 
                 // Store statusDto for dynamic estimates
                 setStatusDtoData(data.statusDto);
@@ -253,9 +235,9 @@ export default function Licenciamento() {
     };
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-blue-50 via-gray-50 to-blue-100">
+        <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <header className="bg-white shadow-lg p-4 mb-6 border-b-4 border-blue-200">
+            <header className="bg-white border-b border-slate-200 p-4 mb-6">
                 <div className="flex items-center justify-center">
                     <Image
                         src="/logo_completa.svg"
@@ -272,15 +254,15 @@ export default function Licenciamento() {
                     {/* Coluna Esquerda - Tabs */}
                     <div className="lg:col-span-2 space-y-4">
                         {/* Tabs */}
-                        <div className="bg-white rounded-2xl p-2 shadow-lg flex gap-2">
+                        <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex gap-2">
                             <button
                                 onClick={() => {
                                     setActiveTab('cooperados');
                                     setCurrentPage(1);
                                 }}
-                                className={`flex-1 w-4/5 rounded-xl font-bold text-base transition-all duration-300 transform ${activeTab === 'cooperados'
-                                    ? 'bg-linear-to-r from-blue-500 to-blue-300 text-white shadow-lg'
-                                    : 'bg-transparent text-blue-400 hover:bg-blue-50 cursor-pointer'
+                                className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all duration-300 cursor-pointer ${activeTab === 'cooperados'
+                                    ? 'bg-blue-700 text-white shadow-sm'
+                                    : 'bg-transparent text-slate-500 hover:bg-slate-100'
                                     }`}
                             >
                                 Cooperados
@@ -290,9 +272,9 @@ export default function Licenciamento() {
                                     setActiveTab('em-processo');
                                     setCurrentPage(1);
                                 }}
-                                className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all duration-300 transform ${activeTab === 'em-processo'
-                                    ? 'bg-linear-to-r from-blue-500 to-blue-300 text-white shadow-lg'
-                                    : 'bg-transparent text-blue-400 hover:bg-blue-50 cursor-pointer'
+                                className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all duration-300 cursor-pointer ${activeTab === 'em-processo'
+                                    ? 'bg-blue-700 text-white shadow-sm'
+                                    : 'bg-transparent text-slate-500 hover:bg-slate-100'
                                     }`}
                             >
                                 Em processo
@@ -300,40 +282,38 @@ export default function Licenciamento() {
                         </div>
 
                         {/* Stats Cards */}
-                        <div className="bg-white rounded-2xl p-6 shadow-xl gap-4 flex flex-col">
-                            <h2 className="text-2xl font-bold text-blue-900 mb-3">
+                        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 gap-4 flex flex-col">
+                            <h2 className="text-xl font-bold text-slate-900 mb-1">
                                 {activeTab === 'cooperados' ? 'Cooperados' : 'Em processo'}
                             </h2>
                             {isLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
-                                </div>
+                                <Spinner />
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div
                                         onClick={() => handleStatClick('TUDO')}
-                                        className={`bg-blue-50 rounded-xl p-4 text-center shadow-md hover:shadow-xl  cursor-pointer ${selectedStatus === 'TUDO' ? 'ring-2 ring-blue-500' : ''}`}
+                                        className={`bg-blue-50 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedStatus === 'TUDO' ? 'ring-2 ring-blue-600' : ''}`}
                                     >
                                         <p className="text-xs text-blue-700 mb-1 font-semibold">Total</p>
                                         <p className="text-4xl font-bold text-blue-700">{stats.total}</p>
                                     </div>
                                     <div
                                         onClick={() => handleStatClick('OK')}
-                                        className={`bg-green-50 rounded-xl p-4 text-center shadow-md hover:shadow-xl  cursor-pointer ${selectedStatus === 'OK' ? 'ring-2 ring-green-600' : ''}`}
+                                        className={`bg-emerald-50 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedStatus === 'OK' ? 'ring-2 ring-emerald-600' : ''}`}
                                     >
-                                        <p className="text-xs text-green-800 mb-1 font-semibold">{activeTab === 'cooperados' ? 'Em Conformidade' : 'Licença Aprovada'}</p>
-                                        <p className="text-4xl font-bold text-green-800">{stats.regular}</p>
+                                        <p className="text-xs text-emerald-800 mb-1 font-semibold">{activeTab === 'cooperados' ? 'Em Conformidade' : 'Licença Aprovada'}</p>
+                                        <p className="text-4xl font-bold text-emerald-700">{stats.regular}</p>
                                     </div>
                                     <div
                                         onClick={() => handleStatClick('ATENCAO')}
-                                        className={`bg-yellow-50 rounded-xl p-4 text-center shadow-md hover:shadow-xl  cursor-pointer ${selectedStatus === 'ATENCAO' ? 'ring-2 ring-yellow-500' : ''}`}
+                                        className={`bg-amber-50 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedStatus === 'ATENCAO' ? 'ring-2 ring-amber-500' : ''}`}
                                     >
-                                        <p className="text-xs text-yellow-800 mb-1 font-semibold">{activeTab === 'cooperados' ? 'À Vencer' : 'Licença Em Andamento'}</p>
-                                        <p className="text-4xl font-bold text-yellow-700">{stats.pending}</p>
+                                        <p className="text-xs text-amber-800 mb-1 font-semibold">{activeTab === 'cooperados' ? 'À Vencer' : 'Licença Em Andamento'}</p>
+                                        <p className="text-4xl font-bold text-amber-700">{stats.pending}</p>
                                     </div>
                                     <div
                                         onClick={() => handleStatClick('INVALIDO')}
-                                        className={`bg-red-50 rounded-xl p-4 text-center shadow-md hover:shadow-xl  cursor-pointer ${selectedStatus === 'INVALIDO' ? 'ring-2 ring-red-600' : ''}`}
+                                        className={`bg-red-50 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedStatus === 'INVALIDO' ? 'ring-2 ring-red-600' : ''}`}
                                     >
                                         <p className="text-xs text-red-700 mb-1 font-semibold">{activeTab === 'cooperados' ? 'Vencidos' : 'Licença Negada'}</p>
                                         <p className="text-4xl font-bold text-red-700">{stats.expired}</p>
@@ -342,20 +322,18 @@ export default function Licenciamento() {
                             )}
                             {/* Licenças/Processos List */}
                             <div>
-                                <h3 className="text-2xl font-bold text-blue-900 mb-4">
+                                <h3 className="text-lg font-bold text-slate-900 mb-4">
                                     {activeTab === 'cooperados' ? 'Licenças' : 'Processos'}
                                 </h3>
 
                                 {selectedStatus === null ? (
-                                    <div className="text-center py-8 text-gray-500">
+                                    <div className="text-center py-8 text-slate-500">
                                         <p className="text-sm">Selecione um status acima para visualizar as licenças</p>
                                     </div>
                                 ) : isLoadingLicenses ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
-                                    </div>
+                                    <Spinner />
                                 ) : licenses.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500">
+                                    <div className="text-center py-8 text-slate-500">
                                         <p className="text-sm">Nenhuma licença encontrada</p>
                                     </div>
                                 ) : (
@@ -364,22 +342,22 @@ export default function Licenciamento() {
                                             // Define cores e ícones baseados no status
                                             const statusConfig = {
                                                 OK: {
-                                                    bg: 'from-green-50 to-white',
-                                                    hover: 'hover:from-green-100 hover:to-green-50',
-                                                    border: 'border-green-500',
-                                                    icon: 'text-green-700',
+                                                    bg: 'bg-emerald-50',
+                                                    hover: 'hover:bg-emerald-100',
+                                                    border: 'border-emerald-500',
+                                                    icon: 'text-emerald-700',
                                                     IconComponent: CheckCircle,
                                                 },
                                                 ATENCAO: {
-                                                    bg: 'from-yellow-50 to-white',
-                                                    hover: 'hover:from-yellow-100 hover:to-yellow-50',
-                                                    border: 'border-yellow-500',
-                                                    icon: 'text-yellow-700',
+                                                    bg: 'bg-amber-50',
+                                                    hover: 'hover:bg-amber-100',
+                                                    border: 'border-amber-500',
+                                                    icon: 'text-amber-700',
                                                     IconComponent: Clock,
                                                 },
                                                 INVALIDO: {
-                                                    bg: 'from-red-50 to-white',
-                                                    hover: 'hover:from-red-100 hover:to-red-50',
+                                                    bg: 'bg-red-50',
+                                                    hover: 'hover:bg-red-100',
                                                     border: 'border-red-500',
                                                     icon: 'text-red-700',
                                                     IconComponent: AlertTriangle,
@@ -395,16 +373,16 @@ export default function Licenciamento() {
                                                     href={`/cooperativa/licenciamento/${item.id}`}
                                                 >
                                                     <div
-                                                        className={`mt-4 bg-linear-to-r ${config.bg} rounded-xl p-4 flex items-center justify-between ${config.hover} transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg transform hover:scale-102 border-l-4 ${config.border}`}
+                                                        className={`${config.bg} rounded-xl p-4 flex items-center justify-between ${config.hover} transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md border-l-4 ${config.border}`}
                                                     >
                                                         <div className="flex justify-center items-center gap-4">
-                                                            <StatusIcon className={`w-7 h-7 ${config.icon} animate-pulse`} />
+                                                            <StatusIcon className={`w-7 h-7 ${config.icon}`} />
                                                             <div className="flex justify-between items-center gap-4">
                                                                 <span>
-                                                                    <p className="font-bold text-base text-gray-900">{item.name}</p>
-                                                                    <p className="text-xs text-gray-600 mb-1">{item.document}</p>
+                                                                    <p className="font-bold text-base text-slate-900">{item.name}</p>
+                                                                    <p className="text-xs text-slate-600 mb-1">{item.document}</p>
                                                                     {item.dataExpiracao && (
-                                                                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                                                                        <p className="text-xs text-slate-500 flex items-center gap-1">
                                                                             <Clock className="w-3 h-3" />
                                                                             Expira em: {formatDate(item.dataExpiracao)}
                                                                         </p>
@@ -412,13 +390,13 @@ export default function Licenciamento() {
                                                                 </span>
                                                                 <span>
                                                                     {item.descricao && (
-                                                                        <p className="text-xs text-blue-600 font-medium mb-1">
+                                                                        <p className="text-xs text-blue-700 font-medium mb-1">
                                                                             {item.descricao}
                                                                         </p>
                                                                     )}
                                                                     <div className="flex items-center gap-3 mt-1">
                                                                         {item.porcentagem && (
-                                                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-semibold">
+                                                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
                                                                                 {item.porcentagem}% concluído
                                                                             </span>
                                                                         )}
@@ -426,7 +404,7 @@ export default function Licenciamento() {
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <ArrowRight className="w-7 h-7 text-[#1f4585]" />
+                                                        <ArrowRight className="w-7 h-7 text-blue-700" />
                                                     </div>
                                                 </Link>
                                             );
@@ -435,33 +413,15 @@ export default function Licenciamento() {
                                 )}
 
                                 {/* Pagination */}
-                                {selectedStatus && totalPages > 1 && !isLoadingLicenses && (
-                                    <div className="flex flex-col items-center gap-3 mt-6">
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={goToPreviousPage}
-                                                disabled={currentPage === 0}
-                                                className="p-2 bg-[#839fce] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#6a8bc2] transition-colors"
-                                            >
-                                                <ChevronLeft className="w-5 h-5 text-white" />
-                                            </button>
-                                            <div className="px-6 py-2 bg-[#839fce] rounded-lg shadow-md">
-                                                <span className="font-bold text-base text-white">
-                                                    {String(currentPage + 1).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={goToNextPage}
-                                                disabled={currentPage >= totalPages - 1}
-                                                className="p-2 bg-[#839fce] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#6a8bc2] transition-colors"
-                                            >
-                                                <ChevronRight className="w-5 h-5 text-white" />
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-gray-600">
-                                            Exibindo {licenses.length} de {totalElements} registros (Página {currentPage + 1} de {totalPages})
-                                        </p>
-                                    </div>
+                                {selectedStatus && !isLoadingLicenses && (
+                                    <Pagination
+                                        page={currentPage}
+                                        totalPages={totalPages}
+                                        totalElements={totalElements}
+                                        pageSize={pageSize}
+                                        onPageChange={(next) => fetchLicenses(selectedStatus, next)}
+                                        disabled={isLoadingLicenses}
+                                    />
                                 )}
                             </div>
                         </div>
@@ -472,63 +432,61 @@ export default function Licenciamento() {
                     <div className="space-y-6">
 
                         {/* Totais Dinâmicos */}
-                        <div className="bg-white rounded-2xl p-6 shadow-xl border-t-4">
-                            <h2 className="text-2xl font-bold text-blue-900 mb-6">{getEstimatesTitle()}</h2>
+                        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100">
+                            <h2 className="text-xl font-bold text-slate-900 mb-6">{getEstimatesTitle()}</h2>
 
                             {isLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
-                                </div>
+                                <Spinner />
                             ) : !selectedStatus ? (
-                                <div className="text-center py-8 text-gray-500">
+                                <div className="text-center py-8 text-slate-500">
                                     <p className="text-sm">Selecione um status para visualizar os totais</p>
                                 </div>
                             ) : (
                                 <>
                                     {/* Valor médio */}
-                                    <div className="mb-8 p-4 bg-gray-50 rounded-xl">
-                                        <p className="text-sm text-blue-600 mb-2 font-semibold">{getEstimatesSubtitle()}</p>
-                                        <p className="text-4xl font-bold text-blue-900 mb-3">
+                                    <div className="mb-6 p-4 bg-slate-50 rounded-xl">
+                                        <p className="text-sm text-blue-700 mb-2 font-semibold">{getEstimatesSubtitle()}</p>
+                                        <p className="text-3xl font-bold text-slate-900 mb-3">
                                             {formatCurrency(estimates.avgValue)}
                                         </p>
                                         <div className="flex items-center gap-2 mb-3">
-                                            <span className="text-2xl font-bold text-yellow-500">
+                                            <span className="text-xl font-bold text-amber-600">
                                                 {estimates.valuePercentage.toFixed(2)}%
                                             </span>
-                                            <span className="text-gray-600 font-medium">do total</span>
+                                            <span className="text-slate-500 font-medium text-sm">do total</span>
                                         </div>
-                                        <div className="w-full bg-gray-300 rounded-full h-4 overflow-hidden shadow-inner">
+                                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                                             <div
-                                                className="bg-linear-to-r from-amber-500 via-yellow-400 to-yellow-300 h-full rounded-full shadow-lg transition-all duration-1000"
+                                                className="bg-amber-500 h-full rounded-full transition-all duration-1000"
                                                 style={{ width: `${estimates.valuePercentage}%` }}
                                             />
                                         </div>
                                     </div>
 
                                     {/* Peso médio */}
-                                    <div className="mb-8 p-4 bg-gray-50 rounded-xl">
-                                        <p className="text-sm text-blue-600 mb-2 font-semibold">Peso pendentes:</p>
-                                        <p className="text-4xl font-bold text-blue-900 mb-3">
+                                    <div className="mb-6 p-4 bg-slate-50 rounded-xl">
+                                        <p className="text-sm text-blue-700 mb-2 font-semibold">Peso pendentes:</p>
+                                        <p className="text-3xl font-bold text-slate-900 mb-3">
                                             {formatWeight(estimates.avgWeight)} Kg
                                         </p>
                                         <div className="flex items-center gap-2 mb-3">
-                                            <span className="text-2xl font-bold text-yellow-500">
+                                            <span className="text-xl font-bold text-amber-600">
                                                 {estimates.weightPercentage.toFixed(2)}%
                                             </span>
-                                            <span className="text-gray-600 font-medium">do total</span>
+                                            <span className="text-slate-500 font-medium text-sm">do total</span>
                                         </div>
-                                        <div className="w-full bg-gray-300 rounded-full h-4 overflow-hidden shadow-inner">
+                                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                                             <div
-                                                className="bg-linear-to-r from-amber-500 via-yellow-400 to-yellow-300 h-full rounded-full shadow-lg transition-all duration-1000"
+                                                className="bg-amber-500 h-full rounded-full transition-all duration-1000"
                                                 style={{ width: `${estimates.weightPercentage}%` }}
                                             />
                                         </div>
                                     </div>
                                     {/* Total Geral */}
-                                    <div className="pt-6 border-t-2 p-4">
+                                    <div className="pt-4 border-t border-slate-100">
                                         <div className="flex items-baseline justify-between">
-                                            <span className="text-lg text-[#839fce] font-bold">Total Geral:</span>
-                                            <span className="text-3xl font-bold  bg-clip-text text-[#1f4585]">
+                                            <span className="text-base text-slate-500 font-bold">Total Geral:</span>
+                                            <span className="text-2xl font-bold text-blue-700">
                                                 {formatCurrency(valorTotal)}
                                             </span>
                                         </div>

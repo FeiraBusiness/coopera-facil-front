@@ -1,11 +1,13 @@
 'use client';
 
+import Spinner from '@/app/admin/components/Spinner';
 import { ArrowLeft, CheckCircle, Clock, Bell, Download } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { use, useState, useEffect } from 'react';
+import { mockFetchDadosLicencaById } from '@/app/utils/mock-legacy-data';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function LicenseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -25,17 +27,17 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE_URL}/dados-licenca/${id}`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-          },
-        });
+        // Integração real com o back-end (GET /api/v1/license/{id}), desativada
+        // enquanto o front usa dados mocados:
+        //
+        // const response = await fetch(`${API_BASE_URL}/dados-licenca/${id}`, {
+        //   headers: { 'ngrok-skip-browser-warning': 'true' },
+        // });
+        // if (!response.ok) throw new Error('Failed to fetch license data');
+        // const data: DadosLicenca[] = await response.json();
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch license data');
-        }
-
-        const data: DadosLicenca[] = await response.json();
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const data: DadosLicenca[] = mockFetchDadosLicencaById(id);
         setDadosLicenca(data);
       } catch (err) {
         console.error('Error fetching license data:', err);
@@ -87,16 +89,16 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
   const handleSendAlert = async (docId: number) => {
     setSendingAlert(docId);
     try {
-      const response = await fetch(`${API_BASE_URL}/send/alert/${docId}`, {
-        method: 'POST',
-        headers: {
-          'ngrok-skip-browser-warning': 'true',
-        },
-      });
+      // Integração real com o back-end (reenvio de notificação via WhatsApp),
+      // desativada enquanto o front usa dados mocados:
+      //
+      // const response = await fetch(`${API_BASE_URL}/send/alert/${docId}`, {
+      //   method: 'POST',
+      //   headers: { 'ngrok-skip-browser-warning': 'true' },
+      // });
+      // if (!response.ok) throw new Error('Failed to send alert');
 
-      if (!response.ok) {
-        throw new Error('Failed to send alert');
-      }
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       showToast('Notificação enviada com sucesso!', 'success');
     } catch (err) {
@@ -108,13 +110,15 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
   };
 
   const getDownloadUrl = (mediaUrl: string) => {
-    return `${API_BASE_URL}/download-pdf?mediaUrl=https://api.twilio.com/2010-04-01/Accounts/AC6db14e3da47121724794df93e93cc344/Messages/MMdaa1d99b11051f6a30d6744c145b79de/Media/ME84cfed98c7f734269ec4182a8a7bc21f`;
+    // Integração real com o back-end faria o proxy do download via mediaUrl do Twilio;
+    // em modo mocado, o próprio arquivo mocado já é retornado.
+    return mediaUrl;
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 via-gray-50 to-blue-100">
-        <header className="bg-white shadow-lg p-4 mb-6 border-b-4 border-blue-200">
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 p-4 mb-6">
           <div className="flex items-center justify-center">
             <Image
               src="/logo_completa.svg"
@@ -126,7 +130,7 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </header>
         <div className="container mx-auto px-4 pb-6 flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-700"></div>
+          <Spinner size="lg" />
         </div>
       </div>
     );
@@ -134,8 +138,8 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
 
   if (error || !primeiraLicenca) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 via-gray-50 to-blue-100">
-        <header className="bg-white shadow-lg p-4 mb-6 border-b-4 border-blue-200">
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 p-4 mb-6">
           <div className="flex items-center justify-center">
             <Image
               src="/logo_completa.svg"
@@ -147,7 +151,7 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </header>
         <div className="container mx-auto px-4 pb-6">
-          <Link href="/cooperativa" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-semibold transition-colors">
+          <Link href="/cooperativa" className="inline-flex items-center gap-2 text-blue-700 hover:text-blue-900 mb-4 font-semibold transition-colors">
             <ArrowLeft className="w-5 h-5" />
             Voltar
           </Link>
@@ -160,15 +164,15 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 via-gray-50 to-blue-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
           <div
             className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-75 ${
               toast.type === 'success'
-                ? 'bg-green-500 text-white'
-                : 'bg-red-500 text-white'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-red-600 text-white'
             }`}
           >
             {toast.type === 'success' ? (
@@ -179,7 +183,7 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
             <p className="font-semibold flex-1">{toast.message}</p>
             <button
               onClick={() => setToast(null)}
-              className="text-white hover:text-gray-200 font-bold text-xl"
+              className="text-white hover:text-slate-200 font-bold text-xl cursor-pointer"
             >
               ×
             </button>
@@ -188,7 +192,7 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Header */}
-      <header className="bg-white shadow-lg p-4 mb-6 border-b-4 border-blue-200">
+      <header className="bg-white border-b border-slate-200 p-4 mb-6">
         <div className="flex items-center justify-center">
           <Image
             src="/logo_completa.svg"
@@ -202,76 +206,76 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="container mx-auto px-4 pb-6">
         {/* Voltar */}
-        <Link href="/cooperativa" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-semibold transition-colors">
+        <Link href="/cooperativa" className="inline-flex items-center gap-2 text-blue-700 hover:text-blue-900 mb-4 font-semibold transition-colors">
           <ArrowLeft className="w-5 h-5" />
           Voltar
         </Link>
 
         {/* Título */}
-        <h1 className="text-3xl font-bold text-blue-900 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-6">
           {primeiraLicenca.descricao} - DOCUMENTOS
         </h1>
 
         {/* Barra de Progresso */}
-        <div className="bg-white rounded-2xl p-6 shadow-xl mb-6">
-          <p className="text-blue-600 text-sm font-semibold mb-3">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 mb-6">
+          <p className="text-blue-700 text-sm font-semibold mb-3">
             {totalDocumentos} documento{totalDocumentos !== 1 ? 's' : ''} cadastrado{totalDocumentos !== 1 ? 's' : ''}
           </p>
           <div className="flex items-center gap-4">
-            <div className="flex-1 bg-gray-300 rounded-full h-4 overflow-hidden shadow-inner">
+            <div className="flex-1 bg-slate-200 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-linear-to-r from-yellow-500 via-yellow-400 to-yellow-300 h-full rounded-full transition-all duration-1000"
+                className="bg-amber-500 h-full rounded-full transition-all duration-1000"
                 style={{ width: `${porcentagemConcluida}%` }}
               />
             </div>
-            <span className="text-2xl font-bold text-yellow-600">{porcentagemConcluida}% concluído</span>
+            <span className="text-xl font-bold text-amber-600">{porcentagemConcluida}% concluído</span>
           </div>
         </div>
 
         {/* Dados da Empresa e Pessoa */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Dados da Empresa/Pessoa */}
-          <div className="bg-white rounded-2xl p-4 shadow-xl">
-            <h2 className="text-lg font-bold text-blue-600 mb-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h2 className="text-base font-bold text-blue-700 mb-3">
               Dados {pessoa.tipoPessoa === 'COOPERATIVA' ? 'da cooperativa' : 'do cooperado'}
             </h2>
             <div className="space-y-2">
               <div>
-                <p className="text-xs font-semibold text-blue-600">Nome:</p>
-                <p className="text-sm text-gray-700">{pessoa.nome}</p>
+                <p className="text-xs font-semibold text-blue-700">Nome:</p>
+                <p className="text-sm text-slate-700">{pessoa.nome}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-600">CNPJ:</p>
-                <p className="text-sm text-gray-700">{pessoa.cnpj}</p>
+                <p className="text-xs font-semibold text-blue-700">CNPJ:</p>
+                <p className="text-sm text-slate-700">{pessoa.cnpj}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-blue-600">Tipo:</p>
-                  <p className="text-sm text-gray-700">{pessoa.tipoPessoa}</p>
+                  <p className="text-xs font-semibold text-blue-700">Tipo:</p>
+                  <p className="text-sm text-slate-700">{pessoa.tipoPessoa}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-blue-600">Status:</p>
-                  <p className="text-sm font-semibold text-blue-600">{getStatusLabel(pessoa.status)}</p>
+                  <p className="text-xs font-semibold text-blue-700">Status:</p>
+                  <p className="text-sm font-semibold text-blue-700">{getStatusLabel(pessoa.status)}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Informações do Processo */}
-          <div className="bg-white rounded-2xl p-4 shadow-xl">
-            <h2 className="text-lg font-bold text-blue-600 mb-3">Informações do processo</h2>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h2 className="text-base font-bold text-blue-700 mb-3">Informações do processo</h2>
             <div className="space-y-2">
               <div>
-                <p className="text-xs font-semibold text-blue-600">Tipo de processo:</p>
-                <p className="text-sm text-gray-700">{pessoa.tipoProcesso}</p>
+                <p className="text-xs font-semibold text-blue-700">Tipo de processo:</p>
+                <p className="text-sm text-slate-700">{pessoa.tipoProcesso}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-600">Porcentagem concluída:</p>
-                <p className="text-sm text-gray-700">{pessoa.porcentagem}%</p>
+                <p className="text-xs font-semibold text-blue-700">Porcentagem concluída:</p>
+                <p className="text-sm text-slate-700">{pessoa.porcentagem}%</p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-600">Total de licenças:</p>
-                <p className="text-sm text-gray-700">{dadosLicenca.length}</p>
+                <p className="text-xs font-semibold text-blue-700">Total de licenças:</p>
+                <p className="text-sm text-slate-700">{dadosLicenca.length}</p>
               </div>
             </div>
           </div>
@@ -279,15 +283,15 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Documentos por Licença */}
         {dadosLicenca.map((licenca) => (
-          <div key={licenca.id} className="bg-white rounded-2xl p-6 shadow-xl mb-6">
+          <div key={licenca.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 mb-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-blue-600">{licenca.descricao}</h2>
+              <h2 className="text-lg font-bold text-blue-700">{licenca.descricao}</h2>
               <span
                 className={`px-4 py-2 rounded-lg font-semibold text-sm ${
                   licenca.status === 'OK'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-emerald-100 text-emerald-700'
                     : licenca.status === 'ATENCAO'
-                    ? 'bg-yellow-100 text-yellow-700'
+                    ? 'bg-amber-100 text-amber-700'
                     : 'bg-red-100 text-red-700'
                 }`}
               >
@@ -295,30 +299,30 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
               </span>
             </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {licenca.documentos.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-300 border-l-4 border-blue-400"
+                  className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all duration-300 border-l-4 border-blue-400"
                 >
                   <div className="flex items-center gap-4">
                     {/* Status Icon */}
                     <div>
                       {licenca.status === 'OK' ? (
-                        <CheckCircle className="w-8 h-8 text-green-600" />
+                        <CheckCircle className="w-8 h-8 text-emerald-600" />
                       ) : (
-                        <Clock className="w-8 h-8 text-yellow-500" />
+                        <Clock className="w-8 h-8 text-amber-500" />
                       )}
                     </div>
 
                     {/* Document Info */}
                     <div>
-                      <p className="font-bold text-sm text-gray-900">{doc.nome}</p>
-                      <p className="text-xs text-gray-600">Espécie: {doc.especie}</p>
-                      <p className="text-xs text-gray-600">
+                      <p className="font-bold text-sm text-slate-900">{doc.nome}</p>
+                      <p className="text-xs text-slate-600">Espécie: {doc.especie}</p>
+                      <p className="text-xs text-slate-600">
                         Validade: {formatDate(doc.validadeLicenca)}
                       </p>
-                      <p className="text-xs text-gray-600">Produção/Ano: {doc.producaoAno} Kg</p>
+                      <p className="text-xs text-slate-600">Produção/Ano: {doc.producaoAno} Kg</p>
                     </div>
                   </div>
 
@@ -327,7 +331,7 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
                     <a
                       href={getDownloadUrl(doc.url)}
                       download
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-all duration-300 shadow-sm hover:shadow-md"
                     >
                       <Download className="w-4 h-4" />
                       <span className="text-sm font-semibold">Download</span>
@@ -335,14 +339,14 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
                     <button
                       onClick={() => handleSendAlert(doc.id)}
                       disabled={sendingAlert === doc.id}
-                      className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${licenca.status !== 'ATENCAO' ? 'hidden' : ''}`}
+                      className={`flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${licenca.status !== 'ATENCAO' ? 'hidden' : ''}`}
                     >
                       {sendingAlert === doc.id ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       ) : (
                         <Bell className="w-4 h-4" />
                       )}
-                      <span className="text-sm font-semibold cursor-pointer">Notificar</span>
+                      <span className="text-sm font-semibold">Notificar</span>
                     </button>
                   </div>
                 </div>
