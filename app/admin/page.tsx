@@ -1,42 +1,78 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Clock3, FileStack, MessageSquareText, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, FileStack, Fish, MessageSquareText, RefreshCw, Users } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import EmptyState from './components/EmptyState';
 import Spinner from './components/Spinner';
-import { getDashboardSummary } from './lib/api';
-import type { DashboardSummary } from './lib/types';
+import { errorMessage, getDashboardSummary } from './lib/api';
+import { EXPIRING_THRESHOLD_DAYS, type DashboardSummary } from './lib/types';
+import { useAutoRefresh } from './lib/useAutoRefresh';
+
+// Atualiza os indicadores sozinho, para refletir os documentos processados pelo Job.
+const REFRESH_INTERVAL_MS = 15000;
+
+// Abaixo disto o vencimento é destacado em vermelho.
+const URGENT_DAYS = 30;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+// 45000 kg -> "45 t"; abaixo de 1 tonelada mostra em kg.
+function formatProduction(kg: number) {
+  if (kg >= 1000) {
+    return `${(kg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t`;
+  }
+  return `${kg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg`;
+}
+
 export default function AdminDashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    getDashboardSummary().then((data) => {
-      if (active) {
-        setSummary(data);
-        setIsLoading(false);
-      }
-    });
-    return () => {
-      active = false;
-    };
+  // silent: atualização em segundo plano, sem trocar a tela pelo spinner.
+  const loadSummary = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      setSummary(await getDashboardSummary());
+      setError(null);
+    } catch (err) {
+      if (!silent) setError(errorMessage(err, 'Erro ao carregar o dashboard'));
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
   }, []);
 
-  if (isLoading || !summary) {
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  useAutoRefresh(() => loadSummary(true), REFRESH_INTERVAL_MS);
+
+  if (isLoading) {
     return <Spinner size="lg" />;
+  }
+
+  if (error || !summary) {
+    return (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
+        <p className="text-red-600 font-semibold">{error ?? 'Erro ao carregar o dashboard'}</p>
+        <button
+          onClick={() => loadSummary()}
+          className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 cursor-pointer"
+        >
+          <RefreshCw className="w-4 h-4" /> Tentar novamente
+        </button>
+      </div>
+    );
   }
 
   const cards = [
     { label: 'Produtores ativos', value: summary.totalProducers, icon: Users, color: 'bg-blue-600', href: '/admin/produtores' },
     { label: 'Licenças vigentes', value: summary.licensesByStatus.vigente, icon: CheckCircle2, color: 'bg-emerald-600', href: '/admin/licencas?status=VIGENTE' },
-    { label: 'Vencendo em 30 dias', value: summary.licensesByStatus.vencendo, icon: Clock3, color: 'bg-amber-500', href: '/admin/licencas?status=VENCENDO' },
+    { label: `Vencendo em até ${EXPIRING_THRESHOLD_DAYS} dias`, value: summary.licensesByStatus.vencendo, icon: Clock3, color: 'bg-amber-500', href: '/admin/licencas?status=VENCENDO' },
     { label: 'Licenças vencidas', value: summary.licensesByStatus.vencida, icon: AlertCircle, color: 'bg-red-600', href: '/admin/licencas?status=VENCIDA' },
   ];
 
@@ -46,6 +82,8 @@ export default function AdminDashboardPage() {
     { label: 'Concluídos', value: summary.documentsByStatus.concluido, color: 'text-emerald-700 bg-emerald-100' },
     { label: 'Com erro', value: summary.documentsByStatus.erro, color: 'text-red-700 bg-red-100' },
   ];
+
+  const atRisk = summary.licensesByStatus.vencendo + summary.licensesByStatus.vencida;
 
   return (
     <div className="space-y-6">
@@ -69,22 +107,49 @@ export default function AdminDashboardPage() {
         })}
       </div>
 
+      {/* Produção em risco: o impacto das licenças vencidas ou vencendo */}
+      <Link
+        href="/admin/licencas?status=VENCENDO"
+        className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl p-5 sm:p-6 border transition-colors ${
+          summary.productionAtRiskKg > 0
+            ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
+            : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+        }`}
+      >
+        <div
+          className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+            summary.productionAtRiskKg > 0 ? 'bg-amber-500' : 'bg-emerald-600'
+          }`}
+        >
+          <Fish className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-slate-600">Produção anual com licença em risco</p>
+          <p className="text-3xl font-bold text-slate-900">{formatProduction(summary.productionAtRiskKg)}</p>
+        </div>
+        <p className="text-sm text-slate-600 sm:max-w-sm">
+          {summary.productionAtRiskKg > 0
+            ? `Soma da produção declarada em ${atRisk} licença(s) vencida(s) ou vencendo nos próximos ${EXPIRING_THRESHOLD_DAYS} dias.`
+            : 'Nenhuma produção com licença vencida ou próxima do vencimento.'}
+        </p>
+      </Link>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Próximos vencimentos */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">Próximos vencimentos</h2>
-            <Link href="/admin/licencas" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
+            <Link href="/admin/licencas?status=VENCENDO" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
               Ver todas
             </Link>
           </div>
 
           {summary.upcomingExpirations.length === 0 ? (
-            <EmptyState title="Nenhum vencimento próximo" description="Todas as licenças estão regularizadas." icon={CheckCircle2} />
+            <EmptyState title="Nenhum vencimento próximo" description={`Nenhuma licença vence nos próximos ${EXPIRING_THRESHOLD_DAYS} dias.`} icon={CheckCircle2} />
           ) : (
             <div className="space-y-2">
               {summary.upcomingExpirations.map((item) => {
-                const urgent = item.daysRemaining <= 7;
+                const urgent = item.daysRemaining <= URGENT_DAYS;
                 return (
                   <Link
                     key={item.licenseId}
