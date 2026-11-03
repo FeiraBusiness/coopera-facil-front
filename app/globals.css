@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
+/* Painel com tema claro fixo: as cores não dependem do modo escuro do sistema. */
 :root {
   --background: #ffffff;
+  --foreground: #0f172a;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -9,12 +12,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground: #ededed;
-  }
 }
 
 body {

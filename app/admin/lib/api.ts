@@ -1,10 +1,18 @@
+// Funções que as telas chamam para falar com a API Coopera.
+// Cada função: monta a requisição (http.ts), recebe o formato da API e devolve o formato da tela (mappers.ts).
+
+import type { ApiDashboardSummary, ApiDocument, ApiLicense, ApiRuralProducer } from './api-types';
+import { http } from './http';
 import {
-  buildDashboardSummary,
-  computeLicenseStatus,
-  seedDocuments,
-  seedLicenses,
-  seedProducers,
-} from './mock-data';
+  toApiDocumentStatus,
+  toApiLicenseStatus,
+  toDashboardSummary,
+  toDocument,
+  toLicense,
+  toLicenseUpdate,
+  toProducer,
+  toProducerRequest,
+} from './mappers';
 import type {
   DashboardSummary,
   DocumentStatus,
@@ -17,133 +25,58 @@ import type {
   WhatsAppDocument,
 } from './types';
 
-// Camada de API mockada. Simula latência de rede e mantém estado em memória
-// (reseta a cada reload). Os contratos espelham README-API-CONTRACTS.md,
-// então basta trocar as implementações abaixo por chamadas `fetch` reais.
+export { errorMessage, isApiError } from './http';
+export type { ApiError } from './http';
 
-let producersStore: RuralProducer[] = seedProducers();
-let licensesStore: License[] = seedLicenses();
-let documentsStore: WhatsAppDocument[] = seedDocuments();
-let nextProducerSeq = producersStore.length + 1;
-
-function delay<T>(value: T, ms = 500): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
-function paginate<T>(items: T[], page: number, size: number): PageResponse<T> {
-  const totalElements = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / size));
-  const start = page * size;
-  const content = items.slice(start, start + size);
-  return {
-    content,
-    totalElements,
-    totalPages,
-    number: page,
-    size,
-    first: page === 0,
-    last: page >= totalPages - 1,
-    empty: content.length === 0,
-  };
-}
-
-export interface ApiError {
-  status: number;
-  message: string;
-}
-
-export function isApiError(err: unknown): err is ApiError {
-  return typeof err === 'object' && err !== null && 'status' in err && 'message' in err;
+// Converte cada item da página mantendo os dados de paginação.
+function mapPage<A, T>(page: PageResponse<A>, mapper: (item: A) => T): PageResponse<T> {
+  return { ...page, content: page.content.map(mapper) };
 }
 
 // GET /api/v1/dashboard/summary
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  return delay(buildDashboardSummary(producersStore, licensesStore, documentsStore));
+  return toDashboardSummary(await http<ApiDashboardSummary>('/api/v1/dashboard/summary'));
 }
 
-// GET /api/v1/rural-producer?search=
+// GET /api/v1/rural-producer?search=&active=&page=&size=
 export async function getProducers(params: {
   search?: string;
+  active?: boolean;
   page?: number;
   size?: number;
 }): Promise<PageResponse<RuralProducer>> {
-  const { search = '', page = 0, size = 10 } = params;
-  const normalized = search.trim().toLowerCase();
-  const filtered = producersStore.filter((p) => {
-    if (!normalized) return true;
-    return (
-      p.name.toLowerCase().includes(normalized) ||
-      p.document.toLowerCase().includes(normalized) ||
-      p.city.toLowerCase().includes(normalized)
-    );
+  const { search, active, page = 0, size = 10 } = params;
+  const result = await http<PageResponse<ApiRuralProducer>>('/api/v1/rural-producer', {
+    query: { search: search?.trim(), active, page, size },
   });
-  return delay(paginate(filtered, page, size));
+  return mapPage(result, toProducer);
 }
 
 // GET /api/v1/rural-producer/{id}
 export async function getProducer(id: string): Promise<RuralProducer> {
-  const producer = producersStore.find((p) => p.id === id);
-  if (!producer) {
-    return Promise.reject({ status: 404, message: 'Produtor não encontrado' } satisfies ApiError);
-  }
-  return delay(producer);
+  return toProducer(await http<ApiRuralProducer>(`/api/v1/rural-producer/${id}`));
 }
 
 // POST /api/v1/rural-producer
 export async function createProducer(input: RuralProducerInput): Promise<RuralProducer> {
-  const now = new Date().toISOString();
-  const producer: RuralProducer = {
-    id: `p-${String(nextProducerSeq++).padStart(3, '0')}`,
-    name: input.name,
-    document: input.document,
-    phone: input.phone,
-    email: input.email ?? null,
-    city: input.city,
-    state: input.state,
-    farmName: input.farmName ?? null,
-    active: true,
-    licensesSummary: { vigente: 0, vencendo: 0, vencida: 0 },
-    createdAt: now,
-    updatedAt: now,
-  };
-  producersStore = [producer, ...producersStore];
-  return delay(producer);
+  return toProducer(
+    await http<ApiRuralProducer>('/api/v1/rural-producer', { method: 'POST', body: toProducerRequest(input) }),
+  );
 }
 
 // PUT /api/v1/rural-producer/{id}
 export async function updateProducer(id: string, input: RuralProducerInput): Promise<RuralProducer> {
-  const index = producersStore.findIndex((p) => p.id === id);
-  if (index === -1) {
-    return Promise.reject({ status: 404, message: 'Produtor não encontrado' } satisfies ApiError);
-  }
-  const updated: RuralProducer = {
-    ...producersStore[index],
-    name: input.name,
-    document: input.document,
-    phone: input.phone,
-    email: input.email ?? null,
-    city: input.city,
-    state: input.state,
-    farmName: input.farmName ?? null,
-    updatedAt: new Date().toISOString(),
-  };
-  producersStore = producersStore.map((p) => (p.id === id ? updated : p));
-  licensesStore = licensesStore.map((l) => (l.producerId === id ? { ...l, producerName: updated.name } : l));
-  return delay(updated);
+  return toProducer(
+    await http<ApiRuralProducer>(`/api/v1/rural-producer/${id}`, { method: 'PUT', body: toProducerRequest(input) }),
+  );
 }
 
-// DELETE /api/v1/rural-producer/{id} (soft delete - desativa, não apaga)
-export async function deactivateProducer(id: string): Promise<RuralProducer> {
-  const index = producersStore.findIndex((p) => p.id === id);
-  if (index === -1) {
-    return Promise.reject({ status: 404, message: 'Produtor não encontrado' } satisfies ApiError);
-  }
-  const updated = { ...producersStore[index], active: false, updatedAt: new Date().toISOString() };
-  producersStore = producersStore.map((p) => (p.id === id ? updated : p));
-  return delay(updated);
+// DELETE /api/v1/rural-producer/{id} (desativa, não apaga). A API responde 204, sem corpo.
+export async function deactivateProducer(id: string): Promise<void> {
+  await http<void>(`/api/v1/rural-producer/${id}`, { method: 'DELETE' });
 }
 
-// GET /api/v1/license?producerId=&status=
+// GET /api/v1/license?producerId=&status=&page=&size=
 export async function getLicenses(params: {
   producerId?: string;
   status?: LicenseStatus | '';
@@ -151,72 +84,38 @@ export async function getLicenses(params: {
   size?: number;
 }): Promise<PageResponse<License>> {
   const { producerId, status, page = 0, size = 10 } = params;
-  const withFreshStatus = licensesStore.map((l) => ({ ...l, status: computeLicenseStatus(l.expirationDate) }));
-  const filtered = withFreshStatus.filter((l) => {
-    if (producerId && l.producerId !== producerId) return false;
-    if (status && l.status !== status) return false;
-    return true;
+  const result = await http<PageResponse<ApiLicense>>('/api/v1/license', {
+    query: { producerId, status: status ? toApiLicenseStatus(status) : undefined, page, size },
   });
-  return delay(paginate(filtered, page, size));
+  return mapPage(result, toLicense);
 }
 
 // GET /api/v1/license/{id}
 export async function getLicense(id: string): Promise<License> {
-  const license = licensesStore.find((l) => l.id === id);
-  if (!license) {
-    return Promise.reject({ status: 404, message: 'Licença não encontrada' } satisfies ApiError);
-  }
-  return delay({ ...license, status: computeLicenseStatus(license.expirationDate) });
+  return toLicense(await http<ApiLicense>(`/api/v1/license/${id}`));
 }
 
-// PUT /api/v1/license/{id} (corrigir leitura errada da IA)
+// PUT /api/v1/license/{id}: revisão; campos alterados viram correção manual na API.
 export async function updateLicense(id: string, input: LicenseUpdateInput): Promise<License> {
-  const index = licensesStore.findIndex((l) => l.id === id);
-  if (index === -1) {
-    return Promise.reject({ status: 404, message: 'Licença não encontrada' } satisfies ApiError);
-  }
-  const current = licensesStore[index];
-  const updated: License = {
-    ...current,
-    type: input.type ?? current.type,
-    number: input.number ?? current.number,
-    issuingAgency: input.issuingAgency ?? current.issuingAgency,
-    issueDate: input.issueDate ?? current.issueDate,
-    expirationDate: input.expirationDate ?? current.expirationDate,
-    extractedFields: input.extractedFields ?? current.extractedFields,
-    updatedAt: new Date().toISOString(),
-  };
-  updated.status = computeLicenseStatus(updated.expirationDate);
-  licensesStore = licensesStore.map((l) => (l.id === id ? updated : l));
-  return delay(updated);
+  return toLicense(
+    await http<ApiLicense>(`/api/v1/license/${id}`, { method: 'PUT', body: toLicenseUpdate(input) }),
+  );
 }
 
-// GET /api/v1/document?status=
+// GET /api/v1/document?status=&page=&size=
 export async function getDocuments(params: {
   status?: DocumentStatus | '';
   page?: number;
   size?: number;
 }): Promise<PageResponse<WhatsAppDocument>> {
   const { status, page = 0, size = 10 } = params;
-  const filtered = documentsStore.filter((d) => (status ? d.status === status : true));
-  const sorted = [...filtered].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  return delay(paginate(sorted, page, size));
+  const result = await http<PageResponse<ApiDocument>>('/api/v1/document', {
+    query: { status: status ? toApiDocumentStatus(status) : undefined, page, size },
+  });
+  return mapPage(result, toDocument);
 }
 
-// POST /api/v1/document/{id}/reprocess
+// POST /api/v1/document/{id}/reprocess: volta para a fila (PENDENTE); o Job analisa em seguida.
 export async function reprocessDocument(id: string): Promise<WhatsAppDocument> {
-  const index = documentsStore.findIndex((d) => d.id === id);
-  if (index === -1) {
-    return Promise.reject({ status: 404, message: 'Documento não encontrado' } satisfies ApiError);
-  }
-  const current = documentsStore[index];
-  const updated: WhatsAppDocument = {
-    ...current,
-    status: 'CONCLUIDO',
-    errorMessage: null,
-    processedAt: new Date().toISOString(),
-    reprocessCount: current.reprocessCount + 1,
-  };
-  documentsStore = documentsStore.map((d) => (d.id === id ? updated : d));
-  return delay(updated, 900);
+  return toDocument(await http<ApiDocument>(`/api/v1/document/${id}/reprocess`, { method: 'POST' }));
 }
