@@ -8,8 +8,9 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Spinner from '../components/Spinner';
 import StatusBadge from '../components/StatusBadge';
-import { getLicenses, getProducers } from '../lib/api';
+import { errorMessage, getLicenses, getProducers } from '../lib/api';
 import type { License, LicenseStatus, RuralProducer } from '../lib/types';
+import { useToast } from '../components/ToastProvider';
 
 const PAGE_SIZE = 8;
 
@@ -35,6 +36,7 @@ export default function LicencasPage() {
 function LicencasContent() {
   const searchParams = useSearchParams();
 
+  const { showToast } = useToast();
   const [producerId, setProducerId] = useState(searchParams.get('producerId') ?? '');
   const [status, setStatus] = useState<LicenseStatus | ''>((searchParams.get('status') as LicenseStatus) ?? '');
   const [producers, setProducers] = useState<RuralProducer[]>([]);
@@ -62,6 +64,8 @@ function LicencasContent() {
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
       setPage(result.number);
+    } catch (err) {
+      showToast(errorMessage(err, 'Erro ao carregar licenças'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +118,7 @@ function LicencasContent() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-slate-500 border-b border-linha">
                     <th className="py-3 pr-4">Produtor</th>
                     <th className="py-3 pr-4">Tipo</th>
                     <th className="py-3 pr-4">Número</th>

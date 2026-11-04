@@ -1,9 +1,33 @@
-// Tipos do painel administrativo (Produtores, Licenças, Documentos, Dashboard)
-// Espelham os contratos descritos em README-API-CONTRACTS.md
+// Tipos do painel administrativo, no vocabulário das telas (status em português).
+// O formato da API fica em api-types.ts; a tradução entre os dois, em mappers.ts.
 
 export type LicenseStatus = 'VIGENTE' | 'VENCENDO' | 'VENCIDA';
 
 export type DocumentStatus = 'PENDENTE' | 'PROCESSANDO' | 'CONCLUIDO' | 'ERRO';
+
+// Origem do valor de um campo extraído: IA (Azure), regra de texto ou correção manual.
+export type FieldSource = 'AI' | 'RULE' | 'MANUAL';
+
+// Siglas aceitas pela API (enum LicenseType do back-end).
+export type LicenseTypeCode = 'LAS' | 'LP' | 'LI' | 'LO' | 'LAR' | 'LAC' | 'DISPENSA' | 'AUTORIZACAO' | 'OTHER';
+
+export const LICENSE_TYPES: { code: LicenseTypeCode; label: string }[] = [
+  { code: 'LAS', label: 'Licença Ambiental Simplificada' },
+  { code: 'LP', label: 'Licença Prévia' },
+  { code: 'LI', label: 'Licença de Instalação' },
+  { code: 'LO', label: 'Licença de Operação' },
+  { code: 'LAR', label: 'Licença Ambiental de Regularização' },
+  { code: 'LAC', label: 'Licença por Adesão e Compromisso' },
+  { code: 'DISPENSA', label: 'Dispensa de Licenciamento' },
+  { code: 'AUTORIZACAO', label: 'Autorização Ambiental' },
+  { code: 'OTHER', label: 'Outro' },
+];
+
+// Mesmo limite do back-end (CONAMA 237/97): a partir daqui a licença está "vencendo".
+export const EXPIRING_THRESHOLD_DAYS = 120;
+
+// Abaixo desta confiança o campo é destacado para revisão.
+export const LOW_CONFIDENCE_THRESHOLD = 0.85;
 
 export interface PageResponse<T> {
   content: T[];
@@ -16,6 +40,12 @@ export interface PageResponse<T> {
   empty: boolean;
 }
 
+export interface LicensesSummary {
+  vigente: number;
+  vencendo: number;
+  vencida: number;
+}
+
 export interface RuralProducer {
   id: string;
   name: string;
@@ -25,12 +55,10 @@ export interface RuralProducer {
   city: string;
   state: string; // UF
   farmName: string | null;
+  cooperado: boolean;
+  cadPro: string | null;
   active: boolean;
-  licensesSummary: {
-    vigente: number;
-    vencendo: number;
-    vencida: number;
-  };
+  licensesSummary: LicensesSummary;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,26 +71,40 @@ export interface RuralProducerInput {
   city: string;
   state: string;
   farmName?: string | null;
+  cooperado: boolean;
+  cadPro?: string | null;
 }
 
 export interface ExtractedField {
   key: string;
   label: string;
   value: string;
-  confidence: number; // 0 a 1, confiança da extração por IA
+  confidence: number | null; // 0 a 1; nulo quando veio de regra ou correção manual
+  source: FieldSource;
   reviewed: boolean;
+  lowConfidence: boolean;
 }
 
 export interface License {
   id: string;
   producerId: string;
   producerName: string;
-  type: string; // ex: Licença de Operação, Outorga de Água
+  typeCode: LicenseTypeCode;
+  type: string; // nome por extenso, para exibição
   number: string;
-  issuingAgency: string; // órgão emissor, ex: IAP, SEMA
-  issueDate: string;
+  protocolNumber: string | null;
+  issuingAgency: string;
+  issueDate: string | null;
   expirationDate: string;
   status: LicenseStatus;
+  daysRemaining: number;
+  needsReview: boolean;
+  holderName: string | null;
+  holderDocument: string | null;
+  municipality: string | null;
+  activity: string | null;
+  cultivatedSpecies: string | null;
+  annualProductionKg: number | null;
   sourceDocumentId: string | null;
   fileUrl: string;
   fileName: string;
@@ -71,13 +113,20 @@ export interface License {
   updatedAt: string;
 }
 
+// Revisão da licença: todos os campos editáveis (PUT completo). Datas no formato AAAA-MM-DD.
 export interface LicenseUpdateInput {
-  type?: string;
-  number?: string;
-  issuingAgency?: string;
-  issueDate?: string;
-  expirationDate?: string;
-  extractedFields?: ExtractedField[];
+  typeCode: LicenseTypeCode;
+  number: string;
+  protocolNumber: string;
+  issuingAgency: string;
+  issueDate: string;
+  expirationDate: string;
+  holderName: string;
+  holderDocument: string;
+  municipality: string;
+  activity: string;
+  cultivatedSpecies: string;
+  annualProductionKg: number | null;
 }
 
 export interface WhatsAppDocument {
@@ -106,16 +155,13 @@ export interface UpcomingExpiration {
 export interface DashboardSummary {
   totalProducers: number;
   totalLicenses: number;
-  licensesByStatus: {
-    vigente: number;
-    vencendo: number;
-    vencida: number;
-  };
+  licensesByStatus: LicensesSummary;
   documentsByStatus: {
     pendente: number;
     processando: number;
     concluido: number;
     erro: number;
   };
+  productionAtRiskKg: number;
   upcomingExpirations: UpcomingExpiration[];
 }

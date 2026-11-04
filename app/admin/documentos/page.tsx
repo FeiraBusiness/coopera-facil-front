@@ -8,10 +8,14 @@ import Pagination from '../components/Pagination';
 import Spinner from '../components/Spinner';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
-import { getDocuments, reprocessDocument } from '../lib/api';
+import { errorMessage, getDocuments, reprocessDocument } from '../lib/api';
 import type { DocumentStatus, WhatsAppDocument } from '../lib/types';
+import { useAutoRefresh } from '../lib/useAutoRefresh';
 
 const PAGE_SIZE = 8;
+
+// Intervalo da atualização automática: acompanha o Job sem precisar recarregar a página.
+const REFRESH_INTERVAL_MS = 5000;
 
 const STATUS_OPTIONS: { value: DocumentStatus | ''; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -35,17 +39,22 @@ export default function DocumentosPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const loadDocuments = async (targetPage: number, statusFilter: DocumentStatus | '') => {
-    setIsLoading(true);
+  // silent: atualização automática em segundo plano, sem spinner e sem toast de erro repetido.
+  const loadDocuments = async (targetPage: number, statusFilter: DocumentStatus | '', silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const result = await getDocuments({ status: statusFilter || undefined, page: targetPage, size: PAGE_SIZE });
       setDocuments(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
       setPage(result.number);
+      setLastUpdate(new Date());
+    } catch (err) {
+      if (!silent) showToast(errorMessage(err, 'Erro ao carregar documentos'), 'error');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -53,14 +62,18 @@ export default function DocumentosPage() {
     loadDocuments(0, status);
   }, [status]);
 
+  // Mantém a página e o filtro atuais; mostra o status mudando conforme o Job processa.
+  useAutoRefresh(() => loadDocuments(page, status, true), REFRESH_INTERVAL_MS);
+
   const handleReprocess = async (doc: WhatsAppDocument) => {
     setReprocessingId(doc.id);
     try {
       await reprocessDocument(doc.id);
-      showToast('Documento reprocessado com sucesso!');
+      showToast('Documento devolvido para a fila de análise');
       loadDocuments(page, status);
-    } catch {
-      showToast('Erro ao reprocessar documento', 'error');
+    } catch (err) {
+      // Ex.: "Remetente ... ainda não está cadastrado como produtor".
+      showToast(errorMessage(err, 'Erro ao reprocessar documento'), 'error');
     } finally {
       setReprocessingId(null);
     }
@@ -68,7 +81,7 @@ export default function DocumentosPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {STATUS_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -80,6 +93,12 @@ export default function DocumentosPage() {
             {opt.label}
           </button>
         ))}
+        {lastUpdate && (
+          <span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Atualizado às {lastUpdate.toLocaleTimeString('pt-BR')}
+          </span>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
@@ -93,7 +112,7 @@ export default function DocumentosPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-slate-500 border-b border-linha">
                     <th className="py-3 pr-4">Produtor / Telefone</th>
                     <th className="py-3 pr-4">Arquivo</th>
                     <th className="py-3 pr-4">Recebido em</th>
@@ -113,7 +132,7 @@ export default function DocumentosPage() {
                       <td className="py-3.5 pr-4">
                         <StatusBadge status={doc.status} />
                         {doc.status === 'ERRO' && doc.errorMessage && (
-                          <p className="text-xs text-red-600 mt-1 flex items-start gap-1 max-w-70">
+                          <p className="text-xs text-vencida mt-1 flex items-start gap-1 max-w-70">
                             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {doc.errorMessage}
                           </p>
                         )}
@@ -123,7 +142,7 @@ export default function DocumentosPage() {
                           <button
                             onClick={() => handleReprocess(doc)}
                             disabled={reprocessingId === doc.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors disabled:opacity-60 cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-marinho text-marinho text-xs font-semibold hover:bg-lavanda-clara transition-colors disabled:opacity-60 cursor-pointer"
                           >
                             {reprocessingId === doc.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -167,7 +186,7 @@ export default function DocumentosPage() {
                   <p className="text-xs text-slate-600 mt-2">{doc.fileName}</p>
                   <p className="text-xs text-slate-400">{formatDateTime(doc.receivedAt)}</p>
                   {doc.status === 'ERRO' && doc.errorMessage && (
-                    <p className="text-xs text-red-600 mt-2 flex items-start gap-1">
+                    <p className="text-xs text-vencida mt-2 flex items-start gap-1">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {doc.errorMessage}
                     </p>
                   )}
@@ -176,7 +195,7 @@ export default function DocumentosPage() {
                       <button
                         onClick={() => handleReprocess(doc)}
                         disabled={reprocessingId === doc.id}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500 text-white text-xs font-semibold disabled:opacity-60 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white border border-marinho text-marinho text-xs font-semibold disabled:opacity-60 cursor-pointer"
                       >
                         {reprocessingId === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                         Reprocessar

@@ -10,8 +10,8 @@ import ProducerFormModal from '../components/ProducerFormModal';
 import Spinner from '../components/Spinner';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
-import { createProducer, deactivateProducer, getProducer, getProducers, updateProducer } from '../lib/api';
-import type { RuralProducer, RuralProducerInput } from '../lib/types';
+import { createProducer, deactivateProducer, errorMessage, getProducer, getProducers, updateProducer } from '../lib/api';import type { RuralProducer, RuralProducerInput } from '../lib/types';
+
 
 const PAGE_SIZE = 8;
 
@@ -46,6 +46,8 @@ export default function ProdutoresPage() {
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
       setPage(result.number);
+    } catch (err) {
+      showToast(errorMessage(err, 'Erro ao carregar produtores'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +70,8 @@ export default function ProdutoresPage() {
     try {
       const full = await getProducer(producer.id);
       setEditingProducer(full);
-    } catch {
-      showToast('Erro ao carregar dados do produtor', 'error');
+    } catch (err) {
+      showToast(errorMessage(err, 'Erro ao carregar dados do produtor'), 'error');
       setFormOpen(false);
     } finally {
       setIsLoadingEditTarget(false);
@@ -88,8 +90,9 @@ export default function ProdutoresPage() {
       }
       setFormOpen(false);
       loadProducers(page, debouncedSearch);
-    } catch {
-      showToast('Erro ao salvar produtor', 'error');
+    } catch (err) {
+      // Regras da API (ex.: "Produtor cooperado precisa do CadPro") chegam com a mensagem pronta.
+      showToast(errorMessage(err, 'Erro ao salvar produtor'), 'error');
     } finally {
       setIsSubmittingForm(false);
     }
@@ -102,8 +105,8 @@ export default function ProdutoresPage() {
       showToast('Produtor desativado com sucesso!');
       setProducerToDelete(null);
       loadProducers(page, debouncedSearch);
-    } catch {
-      showToast('Erro ao desativar produtor', 'error');
+    } catch (err) {
+      showToast(errorMessage(err, 'Erro ao desativar produtor'), 'error');
     }
   };
 
@@ -143,7 +146,7 @@ export default function ProdutoresPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-slate-500 border-b border-linha">
                     <th className="py-3 pr-4">Produtor</th>
                     <th className="py-3 pr-4">Documento</th>
                     <th className="py-3 pr-4">Cidade/UF</th>

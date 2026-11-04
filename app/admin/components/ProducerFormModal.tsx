@@ -24,6 +24,8 @@ const EMPTY_FORM: RuralProducerInput = {
   city: '',
   state: 'PR',
   farmName: '',
+   cooperado: false,
+  cadPro: '',
 };
 
 function toFormValues(mode: 'create' | 'edit', initialData?: RuralProducer | null): RuralProducerInput {
@@ -36,6 +38,8 @@ function toFormValues(mode: 'create' | 'edit', initialData?: RuralProducer | nul
       city: initialData.city,
       state: initialData.state,
       farmName: initialData.farmName ?? '',
+      cooperado: initialData.cooperado,
+      cadPro: initialData.cadPro ?? '',
     };
   }
   return EMPTY_FORM;
@@ -90,6 +94,11 @@ function ProducerForm({
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Ao desmarcar cooperado, o CadPro deixa de valer e é limpo.
+  const handleCooperadoChange = (checked: boolean) => {
+    setForm((prev) => ({ ...prev, cooperado: checked, cadPro: checked ? prev.cadPro : '' }));
+  };
+
   const validate = (): boolean => {
     const nextErrors: typeof errors = {};
     if (!form.name.trim()) nextErrors.name = 'Informe o nome';
@@ -97,6 +106,8 @@ function ProducerForm({
     if (!form.phone.trim()) nextErrors.phone = 'Informe o telefone';
     if (!form.city.trim()) nextErrors.city = 'Informe a cidade';
     if (!form.state.trim()) nextErrors.state = 'Informe a UF';
+    // Mesma regra do back-end: cooperado precisa do CadPro.
+    if (form.cooperado && !form.cadPro?.trim()) nextErrors.cadPro = 'Informe o CadPro do cooperado';
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -195,6 +206,32 @@ function ProducerForm({
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               placeholder="Ex: Fazenda Santa Luzia"
             />
+          </div>
+
+            <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.cooperado}
+                onChange={(e) => handleCooperadoChange(e.target.checked)}
+                className="w-4 h-4 accent-blue-700"
+              />
+              <span className="text-sm font-semibold text-slate-700">Produtor cooperado</span>
+            </label>
+            {form.cooperado && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">CadPro *</label>
+                <input
+                  value={form.cadPro ?? ''}
+                  onChange={(e) => handleChange('cadPro', e.target.value)}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
+                    errors.cadPro ? 'border-red-400' : 'border-slate-200'
+                  }`}
+                  placeholder="Número do cadastro de produtor"
+                />
+                {errors.cadPro && <p className="text-xs text-red-600 mt-1">{errors.cadPro}</p>}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">
