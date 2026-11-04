@@ -146,7 +146,7 @@ export default function ProdutoresPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-slate-500 border-b border-linha">
                     <th className="py-3 pr-4">Produtor</th>
                     <th className="py-3 pr-4">Documento</th>
                     <th className="py-3 pr-4">Cidade/UF</th>

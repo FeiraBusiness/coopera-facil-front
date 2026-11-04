@@ -1,12 +1,13 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Clock3, FileStack, Fish, MessageSquareText, RefreshCw, Users } from 'lucide-react';
+import { CheckCircle2, ChevronRight, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import EmptyState from './components/EmptyState';
 import Spinner from './components/Spinner';
-import { errorMessage, getDashboardSummary } from './lib/api';
-import { EXPIRING_THRESHOLD_DAYS, type DashboardSummary } from './lib/types';
+import ValidityRuler from './components/ValidityRuler';
+import { errorMessage, getDashboardSummary, getLicenses } from './lib/api';
+import { EXPIRING_THRESHOLD_DAYS, type DashboardSummary, type License } from './lib/types';
 import { useAutoRefresh } from './lib/useAutoRefresh';
 
 // Atualiza os indicadores sozinho, para refletir os documentos processados pelo Job.
@@ -14,6 +15,12 @@ const REFRESH_INTERVAL_MS = 15000;
 
 // Abaixo disto o vencimento é destacado em vermelho.
 const URGENT_DAYS = 30;
+
+// Divisórias da faixa de totais: 2 colunas no celular/tablet, 4 colunas em telas largas.
+const TOTAL_BORDERS = ['', 'border-l', 'border-t xl:border-t-0 xl:border-l', 'border-l border-t xl:border-t-0'];
+
+// Licenças plotadas na régua (a API limita a página a 100).
+const RULER_SIZE = 100;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -29,27 +36,33 @@ function formatProduction(kg: number) {
 
 export default function AdminDashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [licenses, setLicenses] = useState<License[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // silent: atualização em segundo plano, sem trocar a tela pelo spinner.
-  const loadSummary = useCallback(async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      setSummary(await getDashboardSummary());
+      const [summaryData, licensePage] = await Promise.all([
+        getDashboardSummary(),
+        getLicenses({ page: 0, size: RULER_SIZE }),
+      ]);
+      setSummary(summaryData);
+      setLicenses(licensePage.content);
       setError(null);
     } catch (err) {
-      if (!silent) setError(errorMessage(err, 'Erro ao carregar o dashboard'));
+      if (!silent) setError(errorMessage(err, 'Erro ao carregar a visão geral'));
     } finally {
       if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadSummary();
-  }, [loadSummary]);
+    loadData();
+  }, [loadData]);
 
-  useAutoRefresh(() => loadSummary(true), REFRESH_INTERVAL_MS);
+  useAutoRefresh(() => loadData(true), REFRESH_INTERVAL_MS);
 
   if (isLoading) {
     return <Spinner size="lg" />;
@@ -57,11 +70,11 @@ export default function AdminDashboardPage() {
 
   if (error || !summary) {
     return (
-      <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
-        <p className="text-red-600 font-semibold">{error ?? 'Erro ao carregar o dashboard'}</p>
+      <div className="bg-white rounded-2xl p-8 text-center border border-linha">
+        <p className="text-vencida font-semibold">{error ?? 'Erro ao carregar a visão geral'}</p>
         <button
-          onClick={() => loadSummary()}
-          className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 cursor-pointer"
+          onClick={() => loadData()}
+          className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl bg-marinho text-white text-sm font-semibold hover:bg-marinho-escuro cursor-pointer"
         >
           <RefreshCw className="w-4 h-4" /> Tentar novamente
         </button>
@@ -69,143 +82,120 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const cards = [
-    { label: 'Produtores ativos', value: summary.totalProducers, icon: Users, color: 'bg-blue-600', href: '/admin/produtores' },
-    { label: 'Licenças vigentes', value: summary.licensesByStatus.vigente, icon: CheckCircle2, color: 'bg-emerald-600', href: '/admin/licencas?status=VIGENTE' },
-    { label: `Vencendo em até ${EXPIRING_THRESHOLD_DAYS} dias`, value: summary.licensesByStatus.vencendo, icon: Clock3, color: 'bg-amber-500', href: '/admin/licencas?status=VENCENDO' },
-    { label: 'Licenças vencidas', value: summary.licensesByStatus.vencida, icon: AlertCircle, color: 'bg-red-600', href: '/admin/licencas?status=VENCIDA' },
+  const totals = [
+    { label: 'Produtores ativos', value: summary.totalProducers, dot: 'bg-marinho', href: '/admin/produtores' },
+    { label: 'Licenças vigentes', value: summary.licensesByStatus.vigente, dot: 'bg-vigente', href: '/admin/licencas?status=VIGENTE' },
+    { label: `Vencendo em até ${EXPIRING_THRESHOLD_DAYS} dias`, value: summary.licensesByStatus.vencendo, dot: 'bg-vencendo', href: '/admin/licencas?status=VENCENDO' },
+    { label: 'Licenças vencidas', value: summary.licensesByStatus.vencida, dot: 'bg-vencida', href: '/admin/licencas?status=VENCIDA' },
   ];
 
-  const documentCards = [
-    { label: 'Pendentes', value: summary.documentsByStatus.pendente, color: 'text-slate-600 bg-slate-100' },
-    { label: 'Processando', value: summary.documentsByStatus.processando, color: 'text-blue-700 bg-blue-100' },
-    { label: 'Concluídos', value: summary.documentsByStatus.concluido, color: 'text-emerald-700 bg-emerald-100' },
-    { label: 'Com erro', value: summary.documentsByStatus.erro, color: 'text-red-700 bg-red-100' },
+  const queue = [
+    { label: 'Aguardando leitura', value: summary.documentsByStatus.pendente + summary.documentsByStatus.processando, color: 'text-marinho' },
+    { label: 'Licenças geradas', value: summary.documentsByStatus.concluido, color: 'text-vigente' },
+    { label: 'Com erro', value: summary.documentsByStatus.erro, color: 'text-vencida' },
   ];
 
   const atRisk = summary.licensesByStatus.vencendo + summary.licensesByStatus.vencida;
 
   return (
-    <div className="space-y-6">
-      {/* Cards de totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Link
-              key={card.label}
-              href={card.href}
-              className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-            >
-              <div className={`w-11 h-11 rounded-xl ${card.color} flex items-center justify-center mb-4`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
-              <p className="text-3xl font-bold text-slate-900">{card.value}</p>
-              <p className="text-sm text-slate-500 mt-1 font-medium">{card.label}</p>
-            </Link>
-          );
-        })}
-      </div>
+    <div className="space-y-5">
+      {/* Totais: uma faixa só, dividida, em vez de cartões soltos */}
+      <section className="bg-white rounded-2xl border border-linha grid grid-cols-2 xl:grid-cols-4">
+        {totals.map((item, index) => (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={`group px-6 py-5 border-linha hover:bg-nevoa/60 transition-colors ${TOTAL_BORDERS[index]}`}
+          >
+            <p className="numeral text-5xl text-tinta">{item.value}</p>
+            <p className="mt-3 flex items-center gap-2 text-sm text-slate-600 group-hover:text-tinta">
+              <span className={`w-2 h-2 rounded-full ${item.dot}`} aria-hidden="true" />
+              {item.label}
+            </p>
+          </Link>
+        ))}
+      </section>
 
-      {/* Produção em risco: o impacto das licenças vencidas ou vencendo */}
-      <Link
-        href="/admin/licencas?status=VENCENDO"
-        className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl p-5 sm:p-6 border transition-colors ${
-          summary.productionAtRiskKg > 0
-            ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
-            : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-        }`}
-      >
-        <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-            summary.productionAtRiskKg > 0 ? 'bg-amber-500' : 'bg-emerald-600'
-          }`}
-        >
-          <Fish className="w-6 h-6 text-white" />
+      {/* Régua de vencimentos: o elemento central da tela */}
+      <section className="bg-white rounded-2xl border border-linha p-6">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-lg font-bold text-tinta">Vencimentos nos próximos 12 meses</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Cada ponto é uma licença. Clique para abrir.</p>
+          </div>
+          <div className="md:text-right">
+            <p className={`numeral text-3xl ${summary.productionAtRiskKg > 0 ? 'text-vencendo' : 'text-vigente'}`}>
+              {formatProduction(summary.productionAtRiskKg)}
+            </p>
+            <p className="text-sm text-slate-600 mt-1 md:max-w-sm">
+              {summary.productionAtRiskKg > 0
+                ? `de produção anual em ${atRisk} licença${atRisk !== 1 ? 's' : ''} vencida${atRisk !== 1 ? 's' : ''} ou vencendo`
+                : 'de produção com licença vencida ou vencendo'}
+            </p>
+          </div>
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-600">Produção anual com licença em risco</p>
-          <p className="text-3xl font-bold text-slate-900">{formatProduction(summary.productionAtRiskKg)}</p>
-        </div>
-        <p className="text-sm text-slate-600 sm:max-w-sm">
-          {summary.productionAtRiskKg > 0
-            ? `Soma da produção declarada em ${atRisk} licença(s) vencida(s) ou vencendo nos próximos ${EXPIRING_THRESHOLD_DAYS} dias.`
-            : 'Nenhuma produção com licença vencida ou próxima do vencimento.'}
-        </p>
-      </Link>
+        <ValidityRuler licenses={licenses} />
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Próximos vencimentos */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900">Próximos vencimentos</h2>
-            <Link href="/admin/licencas?status=VENCENDO" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
-              Ver todas
+        <section className="lg:col-span-2 bg-white rounded-2xl border border-linha p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-tinta">Renovar primeiro</h2>
+            <Link href="/admin/licencas?status=VENCENDO" className="text-sm font-semibold text-marinho hover:text-marinho-escuro">
+              Ver licenças vencendo
             </Link>
           </div>
 
           {summary.upcomingExpirations.length === 0 ? (
-            <EmptyState title="Nenhum vencimento próximo" description={`Nenhuma licença vence nos próximos ${EXPIRING_THRESHOLD_DAYS} dias.`} icon={CheckCircle2} />
+            <EmptyState title="Nenhuma licença no prazo de renovação" description={`Nenhuma licença vence nos próximos ${EXPIRING_THRESHOLD_DAYS} dias.`} icon={CheckCircle2} />
           ) : (
-            <div className="space-y-2">
+            <ul className="divide-y divide-linha">
               {summary.upcomingExpirations.map((item) => {
                 const urgent = item.daysRemaining <= URGENT_DAYS;
                 return (
-                  <Link
-                    key={item.licenseId}
-                    href={`/admin/licencas/${item.licenseId}`}
-                    className={`flex items-center justify-between gap-4 p-4 rounded-xl border-l-4 transition-colors ${
-                      urgent ? 'bg-red-50 border-red-500 hover:bg-red-100' : 'bg-amber-50 border-amber-500 hover:bg-amber-100'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm text-slate-900 truncate">{item.producerName}</p>
-                      <p className="text-xs text-slate-500">{item.licenseType}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${urgent ? 'text-red-700' : 'text-amber-700'}`}>
-                        {item.daysRemaining} dia{item.daysRemaining !== 1 ? 's' : ''}
-                      </p>
-                      <p className="text-xs text-slate-500">{formatDate(item.expirationDate)}</p>
-                    </div>
-                  </Link>
+                  <li key={item.licenseId}>
+                    <Link
+                      href={`/admin/licencas/${item.licenseId}`}
+                      className="group flex items-center gap-4 py-3.5 -mx-2 px-2 rounded-lg hover:bg-nevoa/60 transition-colors"
+                    >
+                      <div className={`w-16 shrink-0 text-right ${urgent ? 'text-vencida' : 'text-vencendo'}`}>
+                        <span className="numeral text-2xl">{item.daysRemaining}</span>
+                        <span className="block text-[11px] font-semibold">dia{item.daysRemaining !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-tinta truncate">{item.producerName}</p>
+                        <p className="text-sm text-slate-500 truncate">
+                          {item.licenseType}, vence em {formatDate(item.expirationDate)}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-marinho shrink-0" />
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Fila de documentos */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900">Fila do WhatsApp</h2>
-            <Link href="/admin/documentos" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
-              Ver fila
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {documentCards.map((card) => (
-              <div key={card.label} className={`rounded-xl p-4 ${card.color}`}>
-                <p className="text-2xl font-bold">{card.value}</p>
-                <p className="text-xs font-semibold mt-1">{card.label}</p>
+        {/* Fila de documentos do WhatsApp */}
+        <section className="bg-white rounded-2xl border border-linha p-6 flex flex-col">
+          <h2 className="text-lg font-bold text-tinta">Recebidos pelo WhatsApp</h2>
+          <dl className="mt-4 space-y-3 flex-1">
+            {queue.map((item) => (
+              <div key={item.label} className="flex items-baseline justify-between gap-3">
+                <dt className="text-sm text-slate-600">{item.label}</dt>
+                <dd className={`numeral text-2xl ${item.color}`}>{item.value}</dd>
               </div>
             ))}
-          </div>
+          </dl>
           <Link
             href="/admin/documentos"
-            className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
+            className="mt-5 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-marinho text-white text-sm font-semibold hover:bg-marinho-escuro transition-colors"
           >
-            <MessageSquareText className="w-4 h-4" />
-            Abrir fila completa
+            Ver documentos recebidos
           </Link>
-          <Link
-            href="/admin/produtores"
-            className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition-colors"
-          >
-            <FileStack className="w-4 h-4" />
-            Gerenciar produtores
-          </Link>
-        </div>
+        </section>
       </div>
     </div>
   );

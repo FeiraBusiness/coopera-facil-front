@@ -1,23 +1,83 @@
 @import "tailwindcss";
 
-/* Painel com tema claro fixo: as cores não dependem do modo escuro do sistema. */
+/* Identidade visual Coopera Fácil.
+   Cores tiradas do logo: marinho (#1F4585) e lavanda (#839FCE).
+   Tema claro fixo: as cores não dependem do modo escuro do sistema. */
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  --background: #eef2f7;
+  --foreground: #17233a;
   color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-archivo), Arial, Helvetica, sans-serif;
+}
+
+@theme {
+  /* Cores da marca, com nomes próprios para uso direto (bg-marinho, text-lavanda...). */
+  --color-marinho: #1f4585;
+  --color-marinho-escuro: #16325f;
+  --color-lavanda: #839fce;
+  --color-lavanda-clara: #e3eaf6;
+  --color-nevoa: #eef2f7;
+  --color-tinta: #17233a;
+  --color-linha: #d9e1ec;
+
+  /* Situação das licenças: mesmas três cores em todas as telas. */
+  --color-vigente: #2f7d55;
+  --color-vigente-claro: #e3f1e9;
+  --color-vencendo: #b26b0a;
+  --color-vencendo-claro: #fcf0dc;
+  --color-vencida: #b83a3a;
+  --color-vencida-claro: #f8e3e3;
+
+  /* A escala "blue" do Tailwind passa a ser a da marca: as telas que usam blue-700, blue-50...
+     herdam o marinho e a lavanda sem precisar trocar classe por classe. */
+  --color-blue-50: #f1f4fa;
+  --color-blue-100: #e3eaf6;
+  --color-blue-200: #c7d4ec;
+  --color-blue-300: #a3b8de;
+  --color-blue-400: #839fce;
+  --color-blue-500: #5577b6;
+  --color-blue-600: #3a5e9f;
+  --color-blue-700: #1f4585;
+  --color-blue-800: #18376b;
+  --color-blue-900: #122953;
+
+  /* Sombras discretas: os painéis se separam do fundo pela cor e pela borda, não pela sombra. */
+  --shadow-sm: 0 1px 0 rgb(23 35 58 / 0.04);
+  --shadow-md: 0 2px 8px rgb(23 35 58 / 0.06);
+  --shadow-lg: 0 6px 20px rgb(23 35 58 / 0.08);
+
+  /* Raios menores e com hierarquia: painéis 14px, campos e botões 10px. */
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.875rem;
+}
+
+html {
+  font-size: clamp(16px, calc(8px + 0.52vw), 20px);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-archivo), Arial, Helvetica, sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Números grandes em largura expandida: o traço da identidade do painel. */
+.numeral {
+  font-stretch: 125%;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-marinho);
+  outline-offset: 2px;
 }
 
 @keyframes slide-in-right {
@@ -61,4 +121,13 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

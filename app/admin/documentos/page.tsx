@@ -96,7 +96,7 @@ export default function DocumentosPage() {
         {lastUpdate && (
           <span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-500">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Atualização automática · {lastUpdate.toLocaleTimeString('pt-BR')}
+            Atualizado às {lastUpdate.toLocaleTimeString('pt-BR')}
           </span>
         )}
       </div>
@@ -112,7 +112,7 @@ export default function DocumentosPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-slate-500 border-b border-linha">
                     <th className="py-3 pr-4">Produtor / Telefone</th>
                     <th className="py-3 pr-4">Arquivo</th>
                     <th className="py-3 pr-4">Recebido em</th>
@@ -132,7 +132,7 @@ export default function DocumentosPage() {
                       <td className="py-3.5 pr-4">
                         <StatusBadge status={doc.status} />
                         {doc.status === 'ERRO' && doc.errorMessage && (
-                          <p className="text-xs text-red-600 mt-1 flex items-start gap-1 max-w-70">
+                          <p className="text-xs text-vencida mt-1 flex items-start gap-1 max-w-70">
                             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {doc.errorMessage}
                           </p>
                         )}
@@ -142,7 +142,7 @@ export default function DocumentosPage() {
                           <button
                             onClick={() => handleReprocess(doc)}
                             disabled={reprocessingId === doc.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors disabled:opacity-60 cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-marinho text-marinho text-xs font-semibold hover:bg-lavanda-clara transition-colors disabled:opacity-60 cursor-pointer"
                           >
                             {reprocessingId === doc.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -186,7 +186,7 @@ export default function DocumentosPage() {
                   <p className="text-xs text-slate-600 mt-2">{doc.fileName}</p>
                   <p className="text-xs text-slate-400">{formatDateTime(doc.receivedAt)}</p>
                   {doc.status === 'ERRO' && doc.errorMessage && (
-                    <p className="text-xs text-red-600 mt-2 flex items-start gap-1">
+                    <p className="text-xs text-vencida mt-2 flex items-start gap-1">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {doc.errorMessage}
                     </p>
                   )}
@@ -195,7 +195,7 @@ export default function DocumentosPage() {
                       <button
                         onClick={() => handleReprocess(doc)}
                         disabled={reprocessingId === doc.id}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500 text-white text-xs font-semibold disabled:opacity-60 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white border border-marinho text-marinho text-xs font-semibold disabled:opacity-60 cursor-pointer"
                       >
                         {reprocessingId === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                         Reprocessar

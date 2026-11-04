@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { use, useEffect, useState, type ReactNode } from 'react';
 import Spinner from '../../components/Spinner';
 import StatusBadge from '../../components/StatusBadge';
+import ValidityBar from '../../components/ValidityBar';
 import { useToast } from '../../components/ToastProvider';
 import { errorMessage, getLicense, updateLicense } from '../../lib/api';
 import { LICENSE_TYPES, type ExtractedField, type License, type LicenseTypeCode } from '../../lib/types';
@@ -47,11 +48,7 @@ function toFormValues(license: License): FormValues {
   };
 }
 
-function daysRemainingText(days: number) {
-  if (days < 0) return `Vencida há ${Math.abs(days)} dia${Math.abs(days) !== 1 ? 's' : ''}`;
-  if (days === 0) return 'Vence hoje';
-  return `Vence em ${days} dia${days !== 1 ? 's' : ''}`;
-}
+
 
 // Selo ao lado de cada campo: de onde veio o valor e se já foi revisado.
 function FieldBadge({ field }: { field?: ExtractedField }) {
@@ -187,17 +184,18 @@ export default function LicenseDetailPage({ params }: { params: Promise<{ id: st
           <Link href="/admin/licencas" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 font-medium">
             <ArrowLeft className="w-4 h-4" /> Voltar para licenças
           </Link>
-          <h2 className="text-xl font-bold text-slate-900">{license.producerName}</h2>
-          <p className="text-sm text-slate-500">
+                    <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-xl font-bold text-tinta">{license.producerName}</h2>
+            <StatusBadge status={license.status} />
+          </div>
+          <p className="text-sm text-slate-500 mt-0.5">
             {license.type}
-            {license.number && ` · Nº ${license.number}`}
+            {license.number && `, nº ${license.number}`}
           </p>
         </div>
-        <div className="text-right">
-          <StatusBadge status={license.status} />
-          <p className="text-xs text-slate-500 mt-1.5 font-medium">{daysRemainingText(license.daysRemaining)}</p>
-        </div>
       </div>
+
+      <ValidityBar license={license} />
 
       {pendingReview > 0 ? (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">

@@ -1,23 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 import ToastContainerClient from "./components/ToastContainerClient";
 import { LicenseProvider } from "./contexts/LicenseContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Archivo com eixo de largura (wdth): a mesma família serve para o texto e para os números expandidos.
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  axes: ["wdth"],
 });
 
 export const metadata: Metadata = {
-  title: "CooperaFácil - Gestão de Licenças Ambientais para Cooperativas",
-  description: "Plataforma para gerenciamento de licenças ambientais de cooperativas.",
+  title: "Coopera Fácil - Licenças ambientais da piscicultura",
+  description: "Gestão das licenças ambientais dos produtores da cooperativa, com envio pelo WhatsApp e leitura automática.",
 };
 
 export default function RootLayout({
@@ -26,10 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="pt-BR">
+      <body className={`${archivo.variable} antialiased`}>
         <LicenseProvider>{children}</LicenseProvider>
         <ToastContainerClient />
       </body>
